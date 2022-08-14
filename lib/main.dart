@@ -8,34 +8,48 @@ void main() {
   ));
 }
 
-class RandomWord {
-  RandomWord({required this.words, required this.saved});
-  List<WordPair> words;
-  Set<WordPair> saved;
+@immutable
+class Word {
+  final WordPair wordPair;
+  final bool isFavorite;
+
+  const Word({required this.wordPair, this.isFavorite = false});
 }
 
-class RandomWordNotifier extends StateNotifier<RandomWord> {
-  RandomWordNotifier() : super(RandomWord(words: [], saved: {}));
-
-  void addWords(List<WordPair> words) {
-    state.words = [...state.words, ...words];
+class WordListNotifier extends StateNotifier<List<Word>> {
+  WordListNotifier() : super([]) {
+    state = [
+      for (var wordPair in generateWordPairs().take(10))
+        Word(wordPair: wordPair)
+    ];
   }
 
-  void removeSaved(WordPair value) {
-    state.saved.remove(value);
+  void add(WordPair wordPair) {
+    state = [...state, Word(wordPair: wordPair)];
   }
 
-  void addSaved(WordPair value) {
-    state.saved.add(value);
+  Future<void> addAll(List<WordPair> wordPairs) async {
+    await Future.delayed(const Duration(milliseconds: 10));
+    for (var wordPair in wordPairs) {
+      add(wordPair);
+    }
+  }
+
+  void toggle(int idx) {
+    state = [
+      for (int i = 0; i < state.length; i++)
+        if (i == idx)
+          Word(wordPair: state[i].wordPair, isFavorite: !state[idx].isFavorite)
+        else
+          state[i],
+    ];
   }
 }
 
-final randomWordsProvider =
-    StateNotifierProvider<RandomWordNotifier, RandomWord>((ref) {
-  return RandomWordNotifier();
+final wordListProvider =
+    StateNotifierProvider<WordListNotifier, List<Word>>((ref) {
+  return WordListNotifier();
 });
-
-final alreadySavedProvider = Provider<bool>((ref) => false);
 
 class RandomWords extends StatefulHookConsumerWidget {
   const RandomWords({super.key});
@@ -49,48 +63,42 @@ class RandomWordsState extends ConsumerState<RandomWords> {
 
   @override
   Widget build(BuildContext context) {
-    final RandomWord randomWord = ref.watch(randomWordsProvider);
-    bool alreadySaved = ref.watch(alreadySavedProvider);
+    final words = ref.watch(wordListProvider);
     return MaterialApp(
       title: 'Startup Name Generator',
       home: Scaffold(
           appBar: AppBar(
             title: const Text('Startup Name Generator'),
           ),
-          body: ListView.builder(
+          body: ListView.separated(
             padding: const EdgeInsets.all(16.0),
-            itemBuilder: (context, i) {
-              if (i.isOdd) return const Divider();
-
-              final index = i ~/ 2;
-              if (index >= randomWord.words.length) {
+            itemCount: words.length,
+            itemBuilder: (context, index) {
+              if (index >= words.length - 1) {
                 ref
-                    .read(randomWordsProvider.notifier)
-                    .addWords(generateWordPairs().take(10).toList());
+                    .read(wordListProvider.notifier)
+                    .addAll(generateWordPairs().take(10).toList());
               }
-              alreadySaved = randomWord.saved.contains(randomWord.words[index]);
               return ListTile(
                 title: Text(
-                  randomWord.words[index].asPascalCase,
+                  words[index].wordPair.asPascalCase,
                   style: biggerFont,
                 ),
                 trailing: Icon(
-                  alreadySaved ? Icons.favorite : Icons.favorite_border,
-                  color: alreadySaved ? Colors.red : null,
-                  semanticLabel: alreadySaved ? 'Remove from saved' : 'Save',
+                  words[index].isFavorite
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  color: words[index].isFavorite ? Colors.red : null,
+                  semanticLabel:
+                      words[index].isFavorite ? 'Remove from saved' : 'Save',
                 ),
                 onTap: () {
-                  if (alreadySaved) {
-                    ref
-                        .read(randomWordsProvider.notifier)
-                        .removeSaved(randomWord.words[index]);
-                  } else {
-                    ref
-                        .read(randomWordsProvider.notifier)
-                        .addSaved(randomWord.words[index]);
-                  }
+                  ref.read(wordListProvider.notifier).toggle(index);
                 },
               );
+            },
+            separatorBuilder: (context, index) {
+              return const Divider();
             },
           )),
     );
