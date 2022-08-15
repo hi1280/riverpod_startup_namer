@@ -4,8 +4,26 @@ import 'package:english_words/english_words.dart';
 
 void main() {
   runApp(const ProviderScope(
-    child: RandomWords(),
+    child: MyApp(),
   ));
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Startup Name Generator',
+      theme: ThemeData(
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
+      ),
+      home: const RandomWords(),
+    );
+  }
 }
 
 @immutable
@@ -64,43 +82,80 @@ class RandomWordsState extends ConsumerState<RandomWords> {
   @override
   Widget build(BuildContext context) {
     final words = ref.watch(wordListProvider);
-    return MaterialApp(
-      title: 'Startup Name Generator',
-      home: Scaffold(
-          appBar: AppBar(
-            title: const Text('Startup Name Generator'),
-          ),
-          body: ListView.separated(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: words.length,
-            itemBuilder: (context, index) {
-              if (index >= words.length - 1) {
-                ref
-                    .read(wordListProvider.notifier)
-                    .addAll(generateWordPairs().take(10).toList());
-              }
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Startup Name Generator'),
+        actions: [
+          IconButton(
+            onPressed: pushSaved,
+            icon: const Icon(Icons.list),
+            tooltip: 'Saved Suggestions',
+          )
+        ],
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: words.length,
+        itemBuilder: (context, index) {
+          if (index >= words.length - 1) {
+            ref
+                .read(wordListProvider.notifier)
+                .addAll(generateWordPairs().take(10).toList());
+          }
+          return ListTile(
+            title: Text(
+              words[index].wordPair.asPascalCase,
+              style: biggerFont,
+            ),
+            trailing: Icon(
+              words[index].isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: words[index].isFavorite ? Colors.red : null,
+              semanticLabel:
+                  words[index].isFavorite ? 'Remove from saved' : 'Save',
+            ),
+            onTap: () {
+              ref.read(wordListProvider.notifier).toggle(index);
+            },
+          );
+        },
+        separatorBuilder: (context, index) {
+          return const Divider();
+        },
+      ),
+    );
+  }
+
+  void pushSaved() {
+    final words = ref.watch(wordListProvider);
+    final saved = words.where((word) => word.isFavorite == true);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          final tiles = saved.map(
+            (pair) {
               return ListTile(
                 title: Text(
-                  words[index].wordPair.asPascalCase,
+                  pair.wordPair.asPascalCase,
                   style: biggerFont,
                 ),
-                trailing: Icon(
-                  words[index].isFavorite
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  color: words[index].isFavorite ? Colors.red : null,
-                  semanticLabel:
-                      words[index].isFavorite ? 'Remove from saved' : 'Save',
-                ),
-                onTap: () {
-                  ref.read(wordListProvider.notifier).toggle(index);
-                },
               );
             },
-            separatorBuilder: (context, index) {
-              return const Divider();
-            },
-          )),
+          );
+          final divided = tiles.isNotEmpty
+              ? ListTile.divideTiles(
+                  context: context,
+                  tiles: tiles,
+                ).toList()
+              : <Widget>[];
+
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Saved Suggestions'),
+            ),
+            body: ListView(children: divided),
+          );
+        },
+      ),
     );
   }
 }
