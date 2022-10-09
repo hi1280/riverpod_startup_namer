@@ -42,14 +42,10 @@ class WordListNotifier extends StateNotifier<List<Word>> {
     ];
   }
 
-  void add(WordPair wordPair) {
-    state = [...state, Word(wordPair: wordPair)];
-  }
-
   Future<void> addAll(List<WordPair> wordPairs) async {
-    await Future.delayed(const Duration(milliseconds: 10));
+    await Future.delayed(const Duration(milliseconds: 1));
     for (var wordPair in wordPairs) {
-      add(wordPair);
+      state = [...state, Word(wordPair: wordPair)];
     }
   }
 
@@ -57,7 +53,7 @@ class WordListNotifier extends StateNotifier<List<Word>> {
     state = [
       for (int i = 0; i < state.length; i++)
         if (i == idx)
-          Word(wordPair: state[i].wordPair, isFavorite: !state[idx].isFavorite)
+          Word(wordPair: state[i].wordPair, isFavorite: !state[i].isFavorite)
         else
           state[i],
     ];
